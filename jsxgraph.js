@@ -132,7 +132,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         ))),
         sig.label('objects',sig.or(
             sig.dict(sig_jsxgraph_object),
-            sig.list(sig_jsxgraph_object)
+            sig.listof(sig_jsxgraph_object)
         )),
         sig.optional(sig.label('options',sig.type('dict')))
     );
