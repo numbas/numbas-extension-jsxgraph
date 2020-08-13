@@ -1,11 +1,24 @@
 /*
- This extension allows you to use jsxGraph to create pretty graphs inside question content.
+    Numbas JSXGraph extension.
+    Copyright 2010-2020 Newcastle University
 */
 
 Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 	var jme = Numbas.jme;	
 	var util = Numbas.util;
 	var math = Numbas.math;
+
+    var jme = Numbas.jme;
+    var sig = jme.signature;
+
+	var types = jme.types;
+	var funcObj = jme.funcObj;
+    var TString = types.TString;
+    var TVector = types.TVector;
+    var TNum = types.TNum;
+    var TDict = types.TDict;
+    var TBool = types.TBool;
+    var THTML = types.THTML;
 
 	var boards = 0;
 	var boardholder;
@@ -15,10 +28,21 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		boardholder.setAttribute('class','invisible');
 		document.body.appendChild(boardholder);
 	});
+
+    jsxgraph.default_options = {
+        boundingBox:[-5,5,5,-5],
+        showCopyright:false, 
+        showNavigation:false, 
+        axis:true
+    };
+
 	jsxgraph.makeBoard = function(width,height,options) {
 		width = width || '600px';
 		height = height || '600px';
-		options = $.extend({boundingBox:[-5,5,5,-5],showCopyright:false, showNavigation:false, axis:true},options);
+		options = Numbas.util.extend_object(
+            jsxgraph.default_options,
+            options
+        );
 
 		var div = document.createElement('div');
 		div.style.margin='0 auto';
@@ -28,12 +52,181 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		boardholder.appendChild(div);
 		div.board = JXG.JSXGraph.initBoard(div.id,options);
 
-		$(document).on('question-html-attached',function() {
-			div.board.fullUpdate();
-		});
+        var attached_interval = setInterval(function() {
+            if(div.parentElement!=boardholder) {
+                div.board.fullUpdate();
+                clearInterval(attached_interval);
+            }
+        },10);
 
 		return div;
 	}
+
+	jsxgraph.makeBoardPromise = function(width,height,options) {
+		width = width || '600px';
+		height = height || '600px';
+		options = Numbas.util.extend_object(
+            {
+                boundingBox:[-5,5,5,-5],
+                showCopyright:false, 
+                showNavigation:false, 
+                axis:true
+            },
+            options
+        );
+
+		var div = document.createElement('div');
+		div.style.margin='0 auto';
+		div.id = 'jsxgraph'+(boards++);
+		div.style.width = width;
+		div.style.height = height;
+
+        var promise = new Promise(function(resolve,reject) {
+            var attached_interval = setInterval(function() {
+                var p = div;
+                while(p && p!=document.body) {
+                    p = p.parentElement;
+                }
+                if(p) {
+                    clearInterval(attached_interval);
+                    var board = div.board = JXG.JSXGraph.initBoard(div.id,options);
+                    board.fullUpdate();
+                    resolve(board);
+                }
+            },10);
+        });
+
+		return {element: div, promise: promise};
+	}
+
+    var make_function_plotter = jsxgraph.make_function_plotter = function(expr,scope) {
+        if(typeof(expr)=='string') {
+            expr = jme.compile(expr);
+        }
+        var freevars = jme.findvars(expr).filter(function(n) { return !scope.getVariable(n) });
+        var freevar = freevars[0];
+
+        function eval(x) {
+            var params = {};
+            params[freevar] = jme.wrapValue(x);
+            scope.cache_signatures = true;
+            return jme.unwrapValue(scope.evaluate(expr,params));
+        }
+        return eval;
+    }
+
+    var sig_jsxgraph_object = sig.list(
+        sig.type('string'),
+        sig.type('list'),
+        sig.optional(sig.type('dict'))
+    );
+
+    var sig_jsxgraph = sig.sequence(
+        sig.label('width',sig.type('number')),
+        sig.label('height',sig.type('number')),
+        sig.optional(sig.label('boundingBox',sig.list(
+            sig.type('number'),
+            sig.type('number'),
+            sig.type('number'),
+            sig.type('number')
+        ))),
+        sig.label('objects',sig.or(
+            sig.dict(sig_jsxgraph_object),
+            sig.list(sig_jsxgraph_object)
+        )),
+        sig.optional(sig.label('options',sig.type('dict')))
+    );
+    jsxgraph.scope.addFunction(new funcObj('jsxgraph',[sig_jsxgraph],THTML,null,{
+        evaluate: function(args,scope) {
+            var m = sig_jsxgraph(args.filter(function(t){ return t.type!='nothing' }));
+            var argdict = {};
+            m.forEach(function(d,i) {
+                if(!d.missing) {
+                    argdict[d.name] = args[i];
+                }
+            });
+            var width = argdict.width.value;
+            var height = argdict.height.value;
+            var options = argdict.options ? jme.unwrapValue(argdict.options) : {};
+            if(argdict.boundingBox) {
+                options.boundingBox = jme.unwrapValue(argdict.boundingBox);
+            }
+
+            var data = jsxgraph.makeBoardPromise(width+'px',height+'px',options);
+            data.promise.then(function(board) {
+                var objects = argdict.objects.value;
+                if(argdict.objects.type=='dict') {
+                    var nobjects = [];
+                    Object.keys(objects).forEach(function(name) {
+                        var od = objects[name].value.slice();
+                        if(od.length==2) {
+                            od.push(new TDict({}));
+                        }
+                        var options = od[2];
+                        options.value.name = new TString(name);
+                        nobjects.push(od);
+                    });
+                    objects = nobjects;
+                } else {
+                    objects = objects.map(function(od) { return od.value; });
+                }
+                objects.forEach(function(od) {
+                    var name = jme.unwrapValue(od[0]);
+                    var parents = od[1].value.map(function(bit) {
+                        if(jme.isType(bit,'expression')) {
+                            var expr = jme.castToType(bit,'expression');
+                            return make_function_plotter(expr.tree, scope);
+                        } else {
+                            return jme.unwrapValue(bit);
+                        }
+                    });
+                    var options = od[2].type=='nothing' ? {} : jme.unwrapValue(od[2]);
+                    board.create.apply(board,[name,parents,options]);
+                });
+                window.parent.board = board;
+            });
+
+            return new THTML(data.element);
+        }
+    }));
+
+    var sig_jessiecode = sig.sequence(
+        sig.label('width',sig.type('number')),
+        sig.label('height',sig.type('number')),
+        sig.optional(sig.label('boundingBox',sig.list(
+            sig.type('number'),
+            sig.type('number'),
+            sig.type('number'),
+            sig.type('number')
+        ))),
+        sig.label('script',sig.type('string')),
+        sig.optional(sig.label('options',sig.type('dict')))
+    );
+    jsxgraph.scope.addFunction(new funcObj('jessiecode',[sig_jessiecode],THTML,null, {
+        evaluate: function(args,scope) {
+            var m = sig_jessiecode(args.filter(function(t){ return t.type!='nothing' }));
+            var argdict = {};
+            m.forEach(function(d,i) {
+                if(!d.missing) {
+                    argdict[d.name] = args[i];
+                }
+            });
+            var width = argdict.width.value;
+            var height = argdict.height.value;
+            var options = argdict.options ? jme.unwrapValue(argdict.options) : {};
+            if(argdict.boundingBox) {
+                options.boundingBox = jme.unwrapValue(argdict.boundingBox);
+            }
+
+            var data = jsxgraph.makeBoardPromise(width+'px',height+'px',options);
+            data.promise.then(function(board) {
+                board.jc.parse(argdict.script.value);
+                window.parent.board = board;
+            });
+
+            return new THTML(data.element);
+        }
+    }));
 });
 
 /*
