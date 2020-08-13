@@ -159,8 +159,8 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     var nobjects = [];
                     Object.keys(objects).forEach(function(name) {
                         var od = objects[name].value.slice();
-                        if(od.length==2) {
-                            od.push(new TDict({}));
+                        if(od[2].type=='nothing') {
+                            od[2] = new TDict({});
                         }
                         var options = od[2];
                         options.value.name = new TString(name);
