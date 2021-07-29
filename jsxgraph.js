@@ -40,6 +40,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		width = width || '600px';
 		height = height || '600px';
 		options = Numbas.util.extend_object(
+            {},
             jsxgraph.default_options,
             options
         );
@@ -66,12 +67,8 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		width = width || '600px';
 		height = height || '600px';
 		options = Numbas.util.extend_object(
-            {
-                boundingBox:[-5,5,5,-5],
-                showCopyright:false, 
-                showNavigation:false, 
-                axis:true
-            },
+            {},
+            jsxgraph.default_options,
             options
         );
 
