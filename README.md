@@ -16,7 +16,7 @@ Create a JSXGraph board.
 
 An object definition is a list in the format `[type, parents, attribute]`.
 
-* `type: string` - the type of object to create. Available types are listed in [the 'Elements' section of the JSXGRaph' documentation](https://jsxgraph.uni-bayreuth.de/docs/).
+* `type: string` - the type of object to create. Available types are listed in [the 'Elements' section of the JSXGraph' documentation](https://jsxgraph.uni-bayreuth.de/docs/).
 * `parents: list` - a list of 'parent' values for the object. The format of this list depends on the type of the object being created. Any values of data type `expression` are replaced with functions which take a single parameter.
 * `attributes: dict` - a dictionary of attributes for the object. The available attributes dpeend on the type of the object.
 
@@ -79,6 +79,151 @@ jessiecode(
     ]
 )
 ```
+
+### `board[name]`
+
+Boards created by the `jsxgraph` and `jessiecode` functions work like dictionaries: the keys are the IDs of objects in the board.
+
+JSXGraph assigns automatic IDs to objects, but these aren't predictable, so if you want to access an object later you have to explicitly set its `id` attribute.
+
+For example, `board["A"]` gets the object with the ID `"A"`.
+
+To access properties of an object in a board, use one of the `jxg_` functions.
+
+The following is a brief description of what the `jxg_` functions do. Refer to the JSXGraph documentation for more information.
+
+### `jxg_angle(object)`
+
+Defined only on lines.
+
+Returns the angle between the line and the x-axis.
+
+### `jxg_area(object)`
+
+Defined only on circles and polygons.
+
+Returns the area of the object.
+
+### `jxg_attribute(object,key)`
+
+Get the value of an arbitrary attribute of an object.
+
+Example: `jxg_attribute(board["A"],"size")`
+
+### `jxg_bounding_box(object)`
+
+Defined only on polygons.
+
+Returns the coordinates of the smallest box containing the polygon, as a list of four numbers `[minX,minY,maxX,maxY]`.
+
+### `jxg_bounds(object)`
+
+Returns the coordinates of the smallest box containing the polygon, as a list of four numbers `[minX,minY,maxX,maxY]`.
+
+### `jxg_distance(a,b)`
+
+Defined only on points, text and images.
+
+Returns the distance between two points.
+
+### `jxg_has_point(object,x,y)`
+
+Returns `true` if the point with coordinates `(x,y)` is contained in `object`.
+
+### `jxg_has_point_sector(object,x,y)`
+
+Defined only on arcs and sectors.
+
+Returns `true` if the point with coordinates `(x,y)` is contained in the sector defined by `object`.
+
+### `jxg_length(object)`
+
+Defined only on lines.
+
+Returns the length of the line.
+
+### `jxg_max_x(object)`
+
+Defined only on circles, curves, lines and turtle graphics.
+
+Treating the object as a parametric curve, returns the maximum value of the parameter.
+
+### `jxg_min_x(object)`
+
+Defined only on circles, curves, lines and turtle graphics.
+
+Treating the object as a parametric curve, returns the maximum value of the parameter.
+
+### `jxg_name(object)`
+
+Returns the name of the object.
+
+### `jxg_parents(object)`
+
+Returns a list of the IDs of the object's parents.
+
+### `jxg_perimeter(object)`
+
+Defined only on polygons.
+
+Returns the length of the object's perimeter.
+
+### `jxg_position(object)`
+
+Returns the object's position as a vector.
+
+### `jxg_position_at(object,t)`
+
+Defined only on circles, curves, lines and turtle graphics.
+
+Returns the coordinates of the point at parameter `t` on the object, as a vector.
+
+### `jxg_radius(object)`
+
+Defined only on arcs, sectors and circles.
+
+Returns the radius of the object.
+
+### `jxg_rise(object)`
+
+Defined only on lines.
+
+Returns the y-coordinate at which the line crosses the y-axis.
+
+### `jxg_size(object)`
+
+Defined only on text objects.
+
+Returns the size of the text.
+
+### `jxg_slope(object)`
+
+Defined only on lines.
+
+Returns the gradient of the line, or `infinity` if it is parallel to the y-axis.
+
+### `jxg_type(object)`
+
+Returns the type of the object as a string.
+
+### `jxg_value(object)`
+
+The returned value depends on the type of the object:
+
+* `angle` - the angle, as a number in radians.
+* `arc` - the length of the arc, as a number.
+* `input` - the content of the input element, as a string.
+* `slider` - the value the slider is currently set to, as a number.
+* `checkbox` - whether the checkbox is ticked, as a boolean.
+* `tapemeasure` - the length of the tape measure.
+* `integral` - the value of the integral.
+* `riemannsum` - the sum of the rectangles.
+
+### `jxg_width(object)`
+
+Defined only on images.
+
+Returns the width of the image, as a number.
 
 ## JavaScript functions
 
