@@ -19,6 +19,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     var TDict = types.TDict;
     var TBool = types.TBool;
     var THTML = types.THTML;
+    var TNothing = types.TNothing;
 
     var object_property_getters = [
         ['value','Value', TNum],
@@ -119,6 +120,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		return {element: div, promise: promise};
 	}
 
+    var linked_questions = [];
 
     var TJSXGraphBoard = jsxgraph.TJSXGraphBoard = function(width,height,options,question,immediate) {
         var jb = this;
@@ -141,6 +143,14 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 question.signals.on('revealed',function() {
                     jb.lockBoard();
                 });
+                if(!linked_questions.contains(question)) {
+                    linked_questions.push(question);
+                    question.signals.on('partsGenerated',function() {
+                        question.allParts().map(function(p) {
+                            jb.linkToPart(p);
+                        });
+                    });
+                }
             }
         });
         this.cache = {};
@@ -175,6 +185,60 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             var board = this.getBoard();
             
             board.attr.drag.enabled = false;
+        },
+
+        linkToPart: function(p) {
+            var setting_answer = false;
+            var reading_answer = false;
+            if(p.markingScript.notes['jxg_input']!==undefined) {
+                function bind_inputs() {
+                    if(setting_answer || !p.hasStagedAnswer()) {
+                        return;
+                    }
+                    reading_answer = true;
+
+                    var dirty = p.isDirty;
+                    var stagedAnswer = p.stagedAnswer;
+                    var os = p.studentAnswer;
+                    p.setStudentAnswer();
+                    var raw_answer = p.rawStudentAnswerAsJME();
+
+                    try {
+                        var bindings = p.markingScript.evaluate_note('jxg_input',p.getScope(),p.marking_parameters(raw_answer));
+                    } catch(e) {
+                        console.error(e);
+                    }
+
+                    p.storeAnswer(os,true);
+                    p.setStudentAnswer();
+                    p.storeAnswer(stagedAnswer,true);
+                    p.setDirty(dirty);
+                }
+                p.events.on('storeAnswer', bind_inputs);
+                bind_inputs();
+            }
+            if(p.markingScript.notes['jxg_output']!==undefined) {
+                function bind_outputs() {
+                    if(reading_answer) {
+                        return;
+                    }
+                    setting_answer = true;
+                    try {
+                    var answer = p.markingScript.evaluate_note('jxg_output',p.getScope());
+                    var uanswer = jme.unwrapValue(answer);
+                    p.storeAnswer(uanswer);
+                    p.display.restoreAnswer(uanswer);
+                    } catch(e) {
+                        console.error(e);
+                    }
+                    setting_answer = false;
+                }
+                this.board.on('update', bind_outputs);
+                this.board.on('down',function() {
+                    reading_answer = false;
+                });
+                bind_outputs();
+            }
         }
     }
 
@@ -414,6 +478,65 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             var a = args[0].get();
             var b = args[1].get();
             return new TNum(a.Dist(b));
+        }
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_set_position',[TJSXGraphObject, TVector], TNothing, null, {
+        evaluate: function(args,scope) {
+            var tboard = args[0].board;
+            tboard.boardPromise.then(function(board) {
+                var object = args[0].get();
+                var coords = jme.unwrapValue(args[1]);
+                if(coords.every(function(z) { return !isNaN(z); })) {
+                    object.setPosition(JXG.COORDS_BY_USER, coords);
+                    board.update();
+                }
+            });
+        }
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_show',[TJSXGraphObject, TBool], TNothing, null, {
+        evaluate: function(args,scope) {
+            var tboard = args[0].board;
+            tboard.boardPromise.then(function() {
+                var object = args[0].get();
+                var show = args[1].value;
+                if(show) {
+                    object.show();
+                } else {
+                    object.hide();
+                }
+            });
+        }
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_set',[TJSXGraphObject, TString, sig.multiple(sig.anything())], TNothing, null, {
+        evaluate: function(args,scope) {
+            var tboard = args[0].board;
+            tboard.boardPromise.then(function() {
+                var object = args[0].get();
+                var name = Numbas.util.capitalise(args[1].value);
+                var jargs = args.slice(2).map(function(a) { 
+                    var v = jme.unwrapValue(a); 
+                    if(v.toNumber) {
+                        v = v.toNumber();
+                    }
+                    return v;
+                });
+                object['set'+name].apply(object,jargs);
+                board.update();
+            });
+        }
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_set_attribute',[TJSXGraphObject, TDict], TNothing, null, {
+        evaluate: function(args,scope) {
+            var tboard = args[0].board;
+            tboard.boardPromise.then(function() {
+                var object = args[0].get();
+                var attributes = jme.unwrapValue(args[1]);
+                object.setAttribute(attributes);
+            });
         }
     }));
 });
