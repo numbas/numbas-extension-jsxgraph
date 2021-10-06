@@ -2,6 +2,58 @@
 
 This extension provides the [JSXGraph](https://jsxgraph.org) library and functions to create diagrams inside a Numbas question.
 
+## Examples
+
+The [JSXGraph demo exam](https://numbas.mathcentre.ac.uk/exam/652/jsxgraph-demo/preview/) contains a collection of questions demonstrating different techniques to do with JSXGraph.
+
+## Creating a diagram
+
+The preferred method to create a diagram is one of the `jsxgraph` or `jessiecode` functions. These produce a value with the type `jsxgraphboard`, which can be inserted into content areas by substitution with curly braces.
+
+You should create the board in a question variable, so that its state can be saved and restored in case the student leaves and resumes their attempt.
+
+## Linking a diagram to marking and part inputs
+
+The `jxg_` functions described below can be used to access properties of a JSXGraph diagram inside a part's marking algorithm.
+
+To link a part's input field to a JSXGraph diagram, you must describe how the link will work in each direction: from the input to the diagram, and vice versa.
+This is achieved by defining two notes in the part's marking algorithm, `jxg_input` and `jxg_output`.
+
+## `jxg_input`
+
+The `jxg_input` note describes how to take input from the student and modify the JSXGraph diagram.
+It is a list of operations to perform.
+Since this is a marking note, all the other notes and variables in the algorithm are available.
+
+The available operations are as follows:
+
+### `jxg_set_position(object,position)`
+
+Set the position of `object` to the given `position`, which should be a 2D vector.
+
+### `jxg_show(object,visible)`
+
+If `visible = true`, then show `object`, otherwise hide it.
+
+### `jxg_set(object,property,arguments)`
+
+Call the JSXGraph `set<property>` on the given object, with the given arguments.
+
+For example, `jxg_set(c, "radius", 5)` calls the JSXGraph method `c.setRadius(5)`.
+
+### `jxg_set_attribute(object,attributes)`
+
+`attributes` should be a dictionary mapping attribute names to values.
+
+This calls the JSXGraph method `setAttribute` on the given object.
+
+## `jxg_output`
+
+The `jxg_output` note describes how to take the state of the diagram to fill in the part's input field.
+
+The note should return a value of the same type as the marking algorithm's `studentAnswer` variable.
+For example, for a "number entry" part this note should produce a string, representing what the student should write.
+
 ## JME functions
 
 ### `jsxgraph(width, height, [boundingBox], objects, [options])`
