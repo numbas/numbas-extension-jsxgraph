@@ -19,7 +19,7 @@ The `jxg_` functions described below can be used to access properties of a JSXGr
 To link a part's input field to a JSXGraph diagram, you must describe how the link will work in each direction: from the input to the diagram, and vice versa.
 This is achieved by defining two notes in the part's marking algorithm, `jxg_input` and `jxg_output`.
 
-## `jxg_input`
+### `jxg_input`
 
 The `jxg_input` note describes how to take input from the student and modify the JSXGraph diagram.
 It is a list of operations to perform.
@@ -27,27 +27,27 @@ Since this is a marking note, all the other notes and variables in the algorithm
 
 The available operations are as follows:
 
-### `jxg_set_position(object,position)`
+#### `jxg_set_position(object,position)`
 
 Set the position of `object` to the given `position`, which should be a 2D vector.
 
-### `jxg_show(object,visible)`
+#### `jxg_show(object,visible)`
 
 If `visible = true`, then show `object`, otherwise hide it.
 
-### `jxg_set(object,property,arguments)`
+#### `jxg_set(object,property,arguments)`
 
 Call the JSXGraph `set<property>` on the given object, with the given arguments.
 
 For example, `jxg_set(c, "radius", 5)` calls the JSXGraph method `c.setRadius(5)`.
 
-### `jxg_set_attribute(object,attributes)`
+#### `jxg_set_attribute(object,attributes)`
 
 `attributes` should be a dictionary mapping attribute names to values.
 
 This calls the JSXGraph method `setAttribute` on the given object.
 
-## `jxg_output`
+### `jxg_output`
 
 The `jxg_output` note describes how to take the state of the diagram to fill in the part's input field.
 
