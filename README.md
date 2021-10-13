@@ -70,7 +70,8 @@ An object definition is a list in the format `[type, parents, attribute]`.
 
 * `type: string` - the type of object to create. Available types are listed in [the 'Elements' section of the JSXGraph' documentation](https://jsxgraph.uni-bayreuth.de/docs/).
 * `parents: list` - a list of 'parent' values for the object. The format of this list depends on the type of the object being created. Any values of data type `expression` are replaced with functions which take a single parameter.
-* `attributes: dict` - a dictionary of attributes for the object. The available attributes dpeend on the type of the object.
+* `attributes: dict` - an optional dictionary of attributes for the object. The available attributes dpeend on the type of the object.
+* `events: dict` - an optional dictionary of events produced by the object to react to. Each event name should correspond to a string of JessieCode.
 
 JSXGraph will often interpret string values in the `parents` list as JavaScript expressions. You can refer to other objects by name.
 Alternately, you can provide JME `expression` values to evaluate expressions in terms of JME variables and functions. JSXGraph objects are not available in these expressions, and they're quite a bit slower than JavaScript.
@@ -132,6 +133,16 @@ jessiecode(
 )
 ```
 
+### `jxg_add_objects(board, objects)`
+
+Add a list of objects to the given board.
+
+The format for `objects` is the same as in the `jsxgraph()` function. Use this to add extra objects to a board - if you want to produce several similar boards, you might define a function which produces a generic board and then use this to add extra objects.
+
+### `jxg_run_jessiecode(board, code)`
+
+Run a JessieCode script, given as a string, on the given board. You could use this to add objects, or modify some aspect of the board.
+
 ### `board[name]`
 
 Boards created by the `jsxgraph` and `jessiecode` functions work like dictionaries: the keys are the IDs of objects in the board.
@@ -178,9 +189,11 @@ Defined only on points, text and images.
 
 Returns the distance between two points.
 
-### `jxg_has_point(object,x,y)`
+### `jxg_has_point(object,x,y)` or `jxg_has_point(object,position)`
 
-Returns `true` if the point with coordinates `(x,y)` is contained in `object`.
+Returns `true` if the point with the given coordinates is contained in `object`.
+
+You can either give the coordinates as two separate numbers, or as a 2D vector.
 
 ### `jxg_has_point_sector(object,x,y)`
 
