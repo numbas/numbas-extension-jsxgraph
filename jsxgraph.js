@@ -1,6 +1,6 @@
 /*
     Numbas JSXGraph extension.
-    Copyright 2010-2020 Newcastle University
+    Copyright 2010-2021 Newcastle University
 */
 
 Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
@@ -27,7 +27,6 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         ['has_point_sector','hasPointSector',TBool,[sig.type('number'),sig.type('number')]],
         ['area','Area',TNum],
         ['bounds','bounds'],
-        ['has_point','hasPoint',TBool,[sig.type('number'),sig.type('number')]],
         ['max_x','maxX',TNum],
         ['min_x','minX',TNum],
         ['attribute','getAttribute',null,[sig.type('string')]],
@@ -122,13 +121,12 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		return {element: div, promise: promise};
 	}
 
-    var linked_questions = [];
-
     var TJSXGraphBoard = jsxgraph.TJSXGraphBoard = function(width,height,options,question,immediate) {
         var jb = this;
         this.width = width;
         this.height = height;
         this.options = options || {};
+        this.question = question;
         var res;
         if(immediate) {
             res = jsxgraph.makeBoard(width+'px',height+'px',options);
@@ -145,14 +143,12 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 question.signals.on('revealed',function() {
                     jb.lockBoard();
                 });
-                if(!linked_questions.contains(question)) {
-                    linked_questions.push(question);
-                    question.signals.on('partsGenerated',function() {
-                        question.allParts().map(function(p) {
-                            jb.linkToPart(p);
-                        });
-                    });
-                }
+                question.allParts().map(function(p) {
+                    jb.linkToPart(p);
+                });
+                question.events.on('add part',function(p) {
+                    jb.linkToPart(p);
+                });
             }
         });
         this.cache = {};
@@ -190,57 +186,122 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         },
 
         linkToPart: function(p) {
+            if(!p.markingScript) {
+                return;
+            }
             var setting_answer = false;
             var reading_answer = false;
-            if(p.markingScript.notes['jxg_input']!==undefined) {
-                function bind_inputs() {
-                    if(setting_answer || !p.hasStagedAnswer()) {
-                        return;
-                    }
-                    reading_answer = true;
-
-                    var dirty = p.isDirty;
-                    var stagedAnswer = p.stagedAnswer;
-                    var os = p.studentAnswer;
-                    p.setStudentAnswer();
-                    var raw_answer = p.rawStudentAnswerAsJME();
-
-                    try {
-                        var bindings = p.markingScript.evaluate_note('jxg_input',p.getScope(),p.marking_parameters(raw_answer));
-                    } catch(e) {
-                        console.error(e);
-                    }
-
-                    p.storeAnswer(os,true);
-                    p.setStudentAnswer();
-                    p.storeAnswer(stagedAnswer,true);
-                    p.setDirty(dirty);
+            function bind_inputs() {
+                if(setting_answer || !p.hasStagedAnswer()) {
+                    return;
                 }
+                reading_answer = true;
+
+                var dirty = p.isDirty;
+                var stagedAnswer = p.stagedAnswer;
+                var os = p.studentAnswer;
+                p.setStudentAnswer();
+                var raw_answer = p.rawStudentAnswerAsJME();
+
+                try {
+                    var scope = new Numbas.jme.Scope([p.getScope()]);
+                    var res = p.markingScript.evaluate_note('jxg_input',scope,p.marking_parameters(raw_answer));
+                    var error = res.scope.state_errors['jxg_input'];
+                    if(error) {
+                        throw(error);
+                    }
+                    var bindings = res.value;
+                    bindings.value.forEach(function(b) {
+                        b.fn();
+                    });
+                } catch(e) {
+                    console.error(e);
+                    p.giveWarning(e);
+                }
+
+                var warnings = p.warnings.slice();
+                p.storeAnswer(os,true);
+                p.setStudentAnswer();
+                p.storeAnswer(stagedAnswer,true);
+                p.setDirty(dirty);
+                p.setWarnings(warnings);
+            }
+            function bind_outputs() {
+                if(reading_answer) {
+                    return;
+                }
+                setting_answer = true;
+                try {
+                    var scope = new Numbas.jme.Scope([p.getScope()]);
+                    var res = p.markingScript.evaluate_note('jxg_output', scope);
+                    var error = res.scope.state_errors['jxg_output'];
+                    if(error) {
+                        throw(error);
+                    }
+                    var answer = res.value;
+                    var uanswer = jme.unwrapValue(answer);
+                    p.storeAnswer(uanswer);
+                    p.display.restoreAnswer(uanswer);
+                } catch(e) {
+                    console.error(e);
+                    p.removeWarnings();
+                    p.giveWarning(e);
+                }
+                setting_answer = false;
+            }
+            if(p.markingScript.notes['jxg_input']!==undefined && !p.jsxgraph_input_linked) {
+                p.jsxgraph_input_linked = true;
                 p.events.on('storeAnswer', bind_inputs);
                 bind_inputs();
             }
             if(p.markingScript.notes['jxg_output']!==undefined) {
-                function bind_outputs() {
-                    if(reading_answer) {
-                        return;
-                    }
-                    setting_answer = true;
-                    try {
-                    var answer = p.markingScript.evaluate_note('jxg_output',p.getScope());
-                    var uanswer = jme.unwrapValue(answer);
-                    p.storeAnswer(uanswer);
-                    p.display.restoreAnswer(uanswer);
-                    } catch(e) {
-                        console.error(e);
-                    }
-                    setting_answer = false;
-                }
                 this.board.on('update', bind_outputs);
                 this.board.on('down',function() {
                     reading_answer = false;
                 });
                 bind_outputs();
             }
+        },
+
+        add_jme_objects: function(tobjects) {
+            this.boardPromise.then(function(board) {
+                var objects = tobjects.value;
+                if(tobjects.type=='dict') {
+                    var nobjects = [];
+                    Object.keys(objects).forEach(function(name) {
+                        var od = objects[name].value.slice();
+                        if(od[2].type=='nothing') {
+                            od[2] = new TDict({});
+                        }
+                        var options = od[2];
+                        options.value.name = new TString(name);
+                        nobjects.push(od);
+                    });
+                    objects = nobjects;
+                } else {
+                    objects = objects.map(function(od) { return od.value; });
+                }
+                objects.forEach(function(od) {
+                    var name = jme.unwrapValue(od[0]);
+                    var parents = od[1].value.map(function(bit) {
+                        if(jme.isType(bit,'expression')) {
+                            var expr = jme.castToType(bit,'expression');
+                            return make_function_plotter(expr.tree, scope);
+                        } else {
+                            return jme.unwrapValue(bit);
+                        }
+                    });
+                    var options = od[2].type=='nothing' ? {} : jme.unwrapValue(od[2]);
+                    var obj = board.create.apply(board,[name,parents,options]);
+                    var events = od[3].type=='nothing' ? {} : jme.unwrapValue(od[3]);
+                    Object.keys(events).forEach(function(ename) {
+                        var code = events[ename];
+                        obj.on(ename,function() { 
+                            board.jc.parse(code); 
+                        });
+                    });
+                });
+            });
         }
     }
 
@@ -279,6 +340,10 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         }
     );
 
+    Numbas.util.equalityTests['jsxgraphboard'] = function(a,b) {
+        return a==b;
+    };
+
     var TJSXGraphObject = jsxgraph.TJSXGraphObject = function(board,id) {
         this.board = board;
         this.id = id;
@@ -287,6 +352,10 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         get: function() {
             return this.board.getObject(this.id);
         }
+    }
+
+    var TJSXGraphAction = jsxgraph.TJSXGraphAction = function(fn) {
+        this.fn = fn;
     }
 
     var make_function_plotter = jsxgraph.make_function_plotter = function(expr,scope) {
@@ -308,8 +377,16 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     var sig_jsxgraph_object = sig.list(
         sig.type('string'),
         sig.type('list'),
-        sig.optional(sig.type('dict'))
+        sig.label('attributes',sig.optional(sig.type('dict'))),
+        sig.label('events',sig.optional(sig.type('dict')))
     );
+
+    var sig_jme_objects = 
+        sig.label('objects',sig.or(
+            sig.dict(sig_jsxgraph_object),
+            sig.listof(sig_jsxgraph_object)
+        ))
+    ;
 
     var sig_jsxgraph = sig.sequence(
         sig.label('width',sig.type('number')),
@@ -320,10 +397,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             sig.type('number'),
             sig.type('number')
         ))),
-        sig.label('objects',sig.or(
-            sig.dict(sig_jsxgraph_object),
-            sig.listof(sig_jsxgraph_object)
-        )),
+        sig_jme_objects,
         sig.optional(sig.label('options',sig.type('dict')))
     );
     jsxgraph.scope.addFunction(new funcObj('jsxgraph',[sig_jsxgraph],TJSXGraphBoard,null,{
@@ -343,37 +417,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
             
             var jb = new TJSXGraphBoard(width,height,options,scope.question);
-            jb.boardPromise.then(function(board) {
-                var objects = argdict.objects.value;
-                if(argdict.objects.type=='dict') {
-                    var nobjects = [];
-                    Object.keys(objects).forEach(function(name) {
-                        var od = objects[name].value.slice();
-                        if(od[2].type=='nothing') {
-                            od[2] = new TDict({});
-                        }
-                        var options = od[2];
-                        options.value.name = new TString(name);
-                        nobjects.push(od);
-                    });
-                    objects = nobjects;
-                } else {
-                    objects = objects.map(function(od) { return od.value; });
-                }
-                objects.forEach(function(od) {
-                    var name = jme.unwrapValue(od[0]);
-                    var parents = od[1].value.map(function(bit) {
-                        if(jme.isType(bit,'expression')) {
-                            var expr = jme.castToType(bit,'expression');
-                            return make_function_plotter(expr.tree, scope);
-                        } else {
-                            return jme.unwrapValue(bit);
-                        }
-                    });
-                    var options = od[2].type=='nothing' ? {} : jme.unwrapValue(od[2]);
-                    board.create.apply(board,[name,parents,options]);
-                });
-            });
+            jb.add_jme_objects(argdict.objects);
 
             return jb;
         }
@@ -475,6 +519,24 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         }
     }));
 
+    function has_point(tobject,x,y) {
+        var c = new JXG.Coords(JXG.COORDS_BY_USER, [x,y], tobject.board.board);
+        var obj = tobject.get();
+        return new TBool(obj.hasPoint(c.scrCoords[1], c.scrCoords[2]));
+    }
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_has_point',[TJSXGraphObject, TVector], TBool, null, {
+        evaluate: function(args,scope) {
+            return has_point(args[0], args[1].value[0], args[1].value[1]);
+        }
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_has_point',[TJSXGraphObject, TNum, TNum], TBool, null, {
+        evaluate: function(args,scope) {
+            return has_point(args[0], args[1].value, args[2].value);
+        }
+    }));
+
     jsxgraph.scope.addFunction(new funcObj('jxg_distance',[TJSXGraphObject, TJSXGraphObject], TNum, null, {
         evaluate: function(args,scope) {
             var a = args[0].get();
@@ -483,8 +545,18 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         }
     }));
 
-    jsxgraph.scope.addFunction(new funcObj('jxg_set_position',[TJSXGraphObject, TVector], TNothing, null, {
-        evaluate: function(args,scope) {
+    function make_action(fn) {
+        return function() {
+            var t = this;
+            var args = arguments;
+            return new TJSXGraphAction(function() {
+                return fn.apply(t,args);
+            });
+        }
+    }
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_set_position',[TJSXGraphObject, TVector], TJSXGraphAction, null, {
+        evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function(board) {
                 var object = args[0].get();
@@ -494,11 +566,11 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     board.update();
                 }
             });
-        }
+        })
     }));
 
-    jsxgraph.scope.addFunction(new funcObj('jxg_show',[TJSXGraphObject, TBool], TNothing, null, {
-        evaluate: function(args,scope) {
+    jsxgraph.scope.addFunction(new funcObj('jxg_show',[TJSXGraphObject, TBool], TJSXGraphAction, null, {
+        evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function() {
                 var object = args[0].get();
@@ -509,13 +581,13 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     object.hide();
                 }
             });
-        }
+        })
     }));
 
-    jsxgraph.scope.addFunction(new funcObj('jxg_set',[TJSXGraphObject, TString, sig.multiple(sig.anything())], TNothing, null, {
-        evaluate: function(args,scope) {
+    jsxgraph.scope.addFunction(new funcObj('jxg_set',[TJSXGraphObject, TString, sig.multiple(sig.anything())], TJSXGraphAction, null, {
+        evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
-            tboard.boardPromise.then(function() {
+            tboard.boardPromise.then(function(board) {
                 var object = args[0].get();
                 var name = Numbas.util.capitalise(args[1].value);
                 var jargs = args.slice(2).map(function(a) { 
@@ -528,17 +600,34 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 object['set'+name].apply(object,jargs);
                 board.update();
             });
-        }
+        })
     }));
 
-    jsxgraph.scope.addFunction(new funcObj('jxg_set_attribute',[TJSXGraphObject, TDict], TNothing, null, {
-        evaluate: function(args,scope) {
+    jsxgraph.scope.addFunction(new funcObj('jxg_set_attribute',[TJSXGraphObject, TDict], TJSXGraphAction, null, {
+        evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function() {
                 var object = args[0].get();
                 var attributes = jme.unwrapValue(args[1]);
                 object.setAttribute(attributes);
             });
+        })
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_add_objects',[TJSXGraphBoard, sig_jme_objects], TJSXGraphBoard, null, {
+        evaluate: function(args,scope) {
+            args[0].add_jme_objects(args[1]);
+            return args[0];
+        }
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_run_jessiecode',[TJSXGraphBoard, TString], TJSXGraphBoard, null, {
+        evaluate: function(args,scope) {
+            var code = args[1].value;
+            args[0].boardPromise.then(function(board) {
+                board.jc.parse(code);
+            });
+            return args[0];
         }
     }));
 });
