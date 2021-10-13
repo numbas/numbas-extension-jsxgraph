@@ -74,6 +74,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		div.id = 'jsxgraph'+(boards++);
 		div.style.width = width;
 		div.style.height = height;
+        div.classList.add('jsxgraph-board');
 		boardholder.appendChild(div);
 		div.board = JXG.JSXGraph.initBoard(div.id,options);
 
@@ -101,6 +102,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		div.id = 'jsxgraph'+(boards++);
 		div.style.width = width;
 		div.style.height = height;
+        div.classList.add('jsxgraph-board');
 
         var promise = new Promise(function(resolve,reject) {
             var attached_interval = setInterval(function() {
