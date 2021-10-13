@@ -326,7 +326,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             });
         },
 
-        add_jme_objects: function(tobjects) {
+        add_jme_objects: function(tobjects,scope) {
             this.when_board(function(board) {
                 var objects = tobjects.value;
                 if(tobjects.type=='dict') {
@@ -480,7 +480,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
             
             var jb = new TJSXGraphBoard(width,height,options,scope.question);
-            jb.add_jme_objects(argdict.objects);
+            jb.add_jme_objects(argdict.objects,scope);
 
             return jb;
         }
@@ -677,7 +677,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 
     jsxgraph.scope.addFunction(new funcObj('jxg_add_objects',[TJSXGraphBoard, sig_jme_objects], TJSXGraphBoard, null, {
         evaluate: function(args,scope) {
-            args[0].add_jme_objects(args[1]);
+            args[0].add_jme_objects(args[1],scope);
             return args[0];
         }
     }));
