@@ -121,12 +121,15 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		return {element: div, promise: promise};
 	}
 
+    var not_initialised_error = false;
+
     var TJSXGraphBoard = jsxgraph.TJSXGraphBoard = function(width,height,options,question,immediate) {
         var jb = this;
         this.width = width;
         this.height = height;
         this.options = options || {};
         this.question = question;
+        this.init_callbacks = [];
         var res;
         if(immediate) {
             res = jsxgraph.makeBoard(width+'px',height+'px',options);
@@ -139,6 +142,9 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         }
         this.boardPromise.then(function(board) {
             jb.board = board;
+            jb.init_callbacks.forEach(function(fn) {
+                fn(jb.board);
+            });
             if(question) {
                 question.signals.on('revealed',function() {
                     jb.lockBoard();
@@ -165,6 +171,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 
         getBoard: function() {
             if(!this.board) {
+                not_initialised_error = true;
                 throw(new Error("The JSXGraph board hasn't initialised yet."));
             }
             return this.board;
@@ -186,6 +193,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         },
 
         linkToPart: function(p) {
+            var jb = this;
             if(!p.markingScript) {
                 return;
             }
@@ -195,28 +203,45 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 if(setting_answer || !p.hasStagedAnswer()) {
                     return;
                 }
+                if(!jb.board) {
+                    return;
+                }
                 reading_answer = true;
 
                 var dirty = p.isDirty;
+                var dirties = [];
+                var pp = p.parentPart;
+                while(pp) {
+                    dirties.push(pp.isDirty);
+                    pp = pp.parentPart;
+                }
                 var stagedAnswer = p.stagedAnswer;
                 var os = p.studentAnswer;
                 p.setStudentAnswer();
                 var raw_answer = p.rawStudentAnswerAsJME();
 
+                var errors = [];
+                not_initialised_error = false;
                 try {
                     var scope = new Numbas.jme.Scope([p.getScope()]);
                     var res = p.markingScript.evaluate_note('jxg_input',scope,p.marking_parameters(raw_answer));
-                    var error = res.scope.state_errors['jxg_input'];
-                    if(error) {
-                        throw(error);
+                    for(var x in res.scope.state_errors) {
+                        errors.push(res.scope.state_errors[x]);
+                    }
+                    if(errors.length) {
+                        throw(new Error("There was an error linking this part to a diagram."));
                     }
                     var bindings = res.value;
                     bindings.value.forEach(function(b) {
                         b.fn();
                     });
                 } catch(e) {
-                    console.error(e);
-                    p.giveWarning(e);
+                    if(!not_initialised_error) {
+                        p.giveWarning(e);
+                        errors.forEach(function(err) {
+                            p.giveWarning(err);
+                        });
+                    }
                 }
 
                 var warnings = p.warnings.slice();
@@ -224,28 +249,52 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 p.setStudentAnswer();
                 p.storeAnswer(stagedAnswer,true);
                 p.setDirty(dirty);
+                if(!dirty) {
+                    var pp = p.parentPart;
+                    for(var i=0;i<dirties.length;i++) {
+                        pp.setDirty(dirties[i]);
+                        pp = pp.parentPart;
+                    }
+                }
                 p.setWarnings(warnings);
             }
             function bind_outputs() {
                 if(reading_answer) {
                     return;
                 }
+                if(!jb.board) {
+                    return;
+                }
                 setting_answer = true;
+                var errors = [];
                 try {
                     var scope = new Numbas.jme.Scope([p.getScope()]);
                     var res = p.markingScript.evaluate_note('jxg_output', scope);
                     var error = res.scope.state_errors['jxg_output'];
-                    if(error) {
-                        throw(error);
+                    for(var x in res.scope.state_errors) {
+                        errors.push(res.scope.state_errors[x]);
+                    }
+                    if(errors.length) {
+                        throw(new Error("There was an error linking this part to a diagram."));
                     }
                     var answer = res.value;
-                    var uanswer = jme.unwrapValue(answer);
-                    p.storeAnswer(uanswer);
-                    p.display.restoreAnswer(uanswer);
+                    if(!Numbas.util.eq(answer, jme.wrapValue(p.stagedAnswer))) {
+                        var uanswer = jme.unwrapValue(answer);
+                        var ostagedAnswer = p.stagedAnswer;
+                        p.storeAnswer(uanswer);
+                        p.display.restoreAnswer(uanswer);
+                        if(ostagedAnswer === undefined) {
+                            p.setDirty(false);
+                        }
+                    }
                 } catch(e) {
-                    console.error(e);
-                    p.removeWarnings();
-                    p.giveWarning(e);
+                    if(!not_initialised_error) {
+                        p.removeWarnings();
+                        p.giveWarning(e);
+                        errors.forEach(function(err) {
+                            p.giveWarning(err);
+                        });
+                    }
                 }
                 setting_answer = false;
             }
@@ -263,8 +312,22 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
         },
 
+        when_board: function(fn) {
+            if(this.board) {
+                fn(this.board);
+            } else {
+                this.init_callbacks.push(fn);
+            }
+        },
+
+        run_jessiecode: function(code) {
+            this.when_board(function(board) {
+                board.jc.parse(code);
+            });
+        },
+
         add_jme_objects: function(tobjects) {
-            this.boardPromise.then(function(board) {
+            this.when_board(function(board) {
                 var objects = tobjects.value;
                 if(tobjects.type=='dict') {
                     var nobjects = [];
@@ -452,9 +515,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
 
             var jb = new TJSXGraphBoard(width,height,options,scope.question);
-            jb.boardPromise.then(function(board) {
-                board.jc.parse(argdict.script.value);
-            });
+            jb.run_jessiecode(argdict.script.value);
 
             return jb;
         }
@@ -624,9 +685,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     jsxgraph.scope.addFunction(new funcObj('jxg_run_jessiecode',[TJSXGraphBoard, TString], TJSXGraphBoard, null, {
         evaluate: function(args,scope) {
             var code = args[1].value;
-            args[0].boardPromise.then(function(board) {
-                board.jc.parse(code);
-            });
+            args[0].run_jessiecode(code);
             return args[0];
         }
     }));
