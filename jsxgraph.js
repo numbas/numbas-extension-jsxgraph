@@ -14,9 +14,11 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 	var types = jme.types;
 	var funcObj = jme.funcObj;
     var TString = types.TString;
+    var TFunc = types.TFunc;
     var TVector = types.TVector;
     var TNum = types.TNum;
     var TDict = types.TDict;
+    var TList = types.TList
     var TBool = types.TBool;
     var THTML = types.THTML;
     var TNothing = types.TNothing;
@@ -49,6 +51,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		boardholder = document.createElement('div');
 		boardholder.id = 'jsxgraphholder';
 		boardholder.setAttribute('class','invisible');
+        boardholder.setAttribute('style','height:0; overflow-y: hidden;');
 		document.body.appendChild(boardholder);
 	});
 
@@ -130,6 +133,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         this.options = options || {};
         this.question = question;
         this.init_callbacks = [];
+        this.init_actions = [];
         var res;
         if(immediate) {
             res = jsxgraph.makeBoard(width+'px',height+'px',options);
@@ -321,12 +325,24 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         },
 
         run_jessiecode: function(code) {
+            this.init_actions.push({
+                type: 'jessiecode',
+                code: code
+            });
             this.when_board(function(board) {
                 board.jc.parse(code);
             });
         },
 
+        /** Add a list or dictionary of objects to the diagram.
+         * @param {Numbas.jme.token} tobjects - A list or dictionary of definitions.
+         * @param {Numbas.jme.Scope} scope
+         */
         add_jme_objects: function(tobjects,scope) {
+            this.init_actions.push({
+                type: 'jme_objects',
+                objects: tobjects
+            });
             this.when_board(function(board) {
                 var objects = tobjects.value;
                 if(tobjects.type=='dict') {
@@ -365,6 +381,20 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     });
                 });
             });
+        },
+
+        run_init_actions: function(actions, scope) {
+            var jb = this;
+            actions.forEach(function(a) {
+                switch(a.value.type.value) {
+                    case 'jessiecode':
+                        jb.run_jessiecode(a.value.code.value);
+                        break;
+                    case 'jme_objects':
+                        jb.add_jme_objects(a.value.objects, scope);
+                        break;
+                }
+            });
         }
     }
 
@@ -373,7 +403,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         'jsxgraphboard',
         {
             'html': function(v) {
-                return new jme.types.THTML(v.element);
+                return new THTML(v.element);
             }
         }
     );
@@ -388,12 +418,32 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     throw(new Numbas.Error("A JSXGraph board refers to itself in its own definition."));
                 }
                 v.tok._to_jme = true;
-                var f = new jme.types.TFunc('resume_jsxgraph_board');
-                var tree = {
-                    tok: f,
-                    args: [{tok:jme.wrapValue(v.tok.toJSON())}]
-                };
-                var s = jme.display.treeToJME(tree);
+                var s;
+                if(v.tok.board) {
+                    s = jme.display.treeToJME({
+                        tok: new TFunc('resume_jsxgraph_board'),
+                        args: [{tok:jme.wrapValue(v.tok.toJSON())}]
+                    });
+                } else {
+                    s = jme.display.treeToJME({
+                        tok: new TFunc('resume_jsxgraph_board_init'),
+                        args: [
+                            {tok: jme.wrapValue(v.tok.width)},
+                            {tok: jme.wrapValue(v.tok.height)},
+                            {tok: jme.wrapValue(v.tok.options)},
+                            {
+                                tok: new TList(v.tok.init_actions.map(function(a) {
+                                    switch(a.type) {
+                                        case 'jessiecode':
+                                            return new TDict({type: jme.wrapValue(a.type), code: jme.wrapValue(a.code)});
+                                        case 'jme_objects':
+                                            return new TDict({type: jme.wrapValue(a.type), objects: a.objects})
+                                    }
+                                }))
+                            }
+                        ]
+                    });
+                }
                 v.tok._to_jme = false;
                 return s;
             },
@@ -535,6 +585,20 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             jb.boardPromise.then(function(board) {
                 board.jc.parse(code);
             });
+
+            return jb;
+        }
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('resume_jsxgraph_board_init',[TNum, TNum, TDict, TList], TJSXGraphBoard, null, {
+        evaluate: function(args,scope) {
+            var width = jme.unwrapValue(args[0]);
+            var height = jme.unwrapValue(args[1]);
+            var options = jme.unwrapValue(args[2]);
+            var actions = args[3].value;
+
+            var jb = new TJSXGraphBoard(width,height,options,scope.question,true);
+            jb.run_init_actions(actions, scope);
 
             return jb;
         }
