@@ -442,7 +442,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                                 }))
                             }
                         ]
-                    });
+                    },{wrapexpressions:true});
                 }
                 v.tok._to_jme = false;
                 return s;
