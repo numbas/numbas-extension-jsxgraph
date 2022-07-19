@@ -47,6 +47,12 @@ For example, `jxg_set(c, "radius", 5)` calls the JSXGraph method `c.setRadius(5)
 
 This calls the JSXGraph method `setAttribute` on the given object.
 
+#### `jxg_set_term(object, expression)`
+
+Set the term plotted by a `functiongraph` object to the given expression, which should calculate the y coordinate corresponding to a given x coordinate.
+
+Example: `jxg_set_term(f, expression("x^2"))`
+
 ### `jxg_output`
 
 The `jxg_output` note describes how to take the state of the diagram to fill in the part's input field.

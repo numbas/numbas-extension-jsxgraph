@@ -22,6 +22,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     var TBool = types.TBool;
     var THTML = types.THTML;
     var TNothing = types.TNothing;
+    var TExpression = types.TExpression;
 
     var object_property_getters = [
         ['value','Value', TNum],
@@ -735,6 +736,18 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 var object = args[0].get();
                 var attributes = jme.unwrapValue(args[1]);
                 object.setAttribute(attributes);
+            });
+        })
+    }));
+
+    jsxgraph.scope.addFunction(new funcObj('jxg_set_term',[TJSXGraphObject, TExpression], TJSXGraphAction, null, {
+        evaluate: make_action(function(args,scope) {
+            var tboard = args[0].board;
+            tboard.boardPromise.then(function(board) {
+                var object = args[0].get();
+                var expr = args[1];
+                object.generateTerm('x','x', make_function_plotter(expr.tree, scope));
+                board.update();
             });
         })
     }));
