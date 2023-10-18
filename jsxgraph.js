@@ -79,7 +79,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 		div.style.height = height;
         div.classList.add('jsxgraph-board');
 		boardholder.appendChild(div);
-		div.board = JXG.JSXGraph.initBoard(div.id,options);
+		div.board = JXG.JSXGraph.initBoard(div,options);
 
         var attached_interval = setInterval(function() {
             if(div.parentElement!=boardholder) {
@@ -115,7 +115,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 }
                 if(p) {
                     clearInterval(attached_interval);
-                    var board = div.board = JXG.JSXGraph.initBoard(div.id,options);
+                    var board = div.board = JXG.JSXGraph.initBoard(div,options);
                     board.fullUpdate();
                     resolve(board);
                 }
