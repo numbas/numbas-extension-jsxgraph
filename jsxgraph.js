@@ -508,7 +508,11 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 var params = {};
                 var args = Array.from(arguments);
                 freevars.forEach(function(freevar, i) {
-                    params[freevar] = jme.wrapValue(args[i]);
+                    if(vars_in_board[i]) {
+                        params[freevar] = board.objects[freevar].Value();
+                    } else {
+                        params[freevar] = jme.wrapValue(args[i]);
+                    }
                 });
                 scope.cache_signatures = true;
                 return jme.unwrapValue(scope.evaluate(expr,params));
