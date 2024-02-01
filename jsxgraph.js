@@ -366,7 +366,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     var parents = od[1].value.map(function(bit) {
                         if(jme.isType(bit,'expression')) {
                             var expr = jme.castToType(bit,'expression');
-                            return make_function_plotter(expr.tree, scope);
+                            return make_function_plotter(board, expr.tree, scope);
                         } else {
                             return jme.unwrapValue(bit);
                         }
@@ -472,27 +472,49 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         this.fn = fn;
     }
 
-    var make_function_plotter = jsxgraph.make_function_plotter = function(expr,scope) {
+    var make_function_plotter = jsxgraph.make_function_plotter = function(board,expr,scope) {
         if(typeof(expr)=='string') {
             expr = jme.compile(expr);
         }
         var freevars = jme.findvars(expr).filter(function(n) { return !scope.getVariable(n) });
         freevars.sort();
 
-        var i = 0;
-        function eval() {
-            var params = {};
-            var args = Array.from(arguments);
-            freevars.forEach(function(freevar, i) {
-                params[freevar] = jme.wrapValue(args[i]);
-            });
-            scope.cache_signatures = true;
-            i += 1;
-            window.plonk = i;
-            return jme.unwrapValue(scope.evaluate(expr,params));
+        var vars_in_board = freevars.map(function(n) { return board.objects[n] && board.objects[n].Value; });
+        var has_vars_in_board = vars_in_board.some(x => x);
+        var nscope = new Numbas.jme.Scope([scope]);
+
+        try {
+            var fn = Numbas.jme.makeFast(expr, scope, freevars);
+
+            if(has_vars_in_board) {
+                return function() {
+                    var args = new Array(freevars.length);
+                    let num_in_board = 0;
+                    for(let i=0;i<freevars.length;i++) {
+                        if(vars_in_board[i]) {
+                            num_in_board += 1;
+                            args[i] = board.objects[freevars[i]].Value();
+                        } else {
+                            args[i] = arguments[i-num_in_board];
+                        }
+                    }
+                    return fn(...args);
+                }
+            } else {
+                return fn;
+            }
+        } catch(e) {
+            function eval() {
+                var params = {};
+                var args = Array.from(arguments);
+                freevars.forEach(function(freevar, i) {
+                    params[freevar] = jme.wrapValue(args[i]);
+                });
+                scope.cache_signatures = true;
+                return jme.unwrapValue(scope.evaluate(expr,params));
+            }
+            return eval;
         }
-        window.plop = eval;
-        return eval;
     }
 
     var sig_jsxgraph_object = sig.list(
@@ -753,7 +775,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             tboard.boardPromise.then(function(board) {
                 var object = args[0].get();
                 var expr = args[1];
-                var plotter = make_function_plotter(expr.tree, scope);
+                var plotter = make_function_plotter(board, expr.tree, scope);
                 if(object.elType == 'implicitcurve') {
                     object.f = plotter;
                     object.updateDataArray();
