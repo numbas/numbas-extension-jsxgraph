@@ -210,6 +210,9 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 if(auto_submit_timeout) {
                     clearTimeout(auto_submit_timeout);
                 }
+                if(!(p.question && p.question.exam && p.question.exam.settings.autoSubmit)) {
+                    return;
+                }
                 auto_submit_timeout = setTimeout(function() {
                     p.submit()
                 }, 1000);
