@@ -204,6 +204,17 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
             var setting_answer = false;
             var reading_answer = false;
+
+            var auto_submit_timeout = null;
+            function debounce_auto_submit() {
+                if(auto_submit_timeout) {
+                    clearTimeout(auto_submit_timeout);
+                }
+                auto_submit_timeout = setTimeout(function() {
+                    p.submit()
+                }, 1000);
+            }
+
             function bind_inputs() {
                 if(setting_answer || !p.hasStagedAnswer()) {
                     return;
@@ -290,6 +301,8 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                         p.display.restoreAnswer(uanswer);
                         if(ostagedAnswer === undefined) {
                             p.setDirty(false);
+                        } else {
+                            debounce_auto_submit();
                         }
                     }
                 } catch(e) {
@@ -314,6 +327,18 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     reading_answer = false;
                 });
                 bind_outputs();
+            } else if(p.type=='extension') {
+                var has_interacted = false;
+                this.board.on('up', () => { has_interacted = true; });
+                this.board.on('keymove', () => { has_interacted = true; });
+                this.board.on('update', () => { 
+                    if(has_interacted) {
+                        if(p.display && p.display.html && p.display.html.contains(this.element)) {
+                            p.setDirty(true);
+                            debounce_auto_submit();
+                        }
+                    }
+                });
             }
         },
 
