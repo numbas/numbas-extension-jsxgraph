@@ -135,6 +135,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         this.question = question;
         this.init_callbacks = [];
         this.init_actions = [];
+        this.has_interacted = false;
         var res;
         if(immediate) {
             res = jsxgraph.makeBoard(width+'px',height+'px',options);
@@ -150,6 +151,11 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             jb.init_callbacks.forEach(function(fn) {
                 fn(jb.board);
             });
+            function interact() {
+                jb.has_interacted = true;
+            }
+            jb.board.on('down', interact);
+            jb.board.on('keymove', interact);
             if(question) {
                 question.signals.on('revealed',function() {
                     jb.lockBoard();
@@ -207,6 +213,9 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 
             var auto_submit_timeout = null;
             function debounce_auto_submit() {
+                if(!jb.has_interacted) {
+                    return;
+                }
                 if(auto_submit_timeout) {
                     clearTimeout(auto_submit_timeout);
                 }
@@ -214,7 +223,11 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     return;
                 }
                 auto_submit_timeout = setTimeout(function() {
-                    p.submit()
+                    let pp = p;
+                    while(pp.isGap) {
+                        pp = pp.parentPart;
+                    }
+                    pp.submit()
                 }, 1000);
             }
 
