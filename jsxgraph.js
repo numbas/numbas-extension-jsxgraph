@@ -160,11 +160,13 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 question.signals.on('revealed',function() {
                     jb.lockBoard();
                 });
-                question.allParts().map(function(p) {
-                    jb.linkToPart(p);
-                });
-                question.events.on('add part',function(p) {
-                    jb.linkToPart(p);
+                question.signals.on('ready', function() {
+                    question.allParts().map(function(p) {
+                        jb.linkToPart(p);
+                    });
+                    question.events.on('add part',function(p) {
+                        jb.linkToPart(p);
+                    });
                 });
             }
         });
