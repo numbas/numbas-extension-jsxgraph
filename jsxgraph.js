@@ -48,7 +48,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 
 	var boards = 0;
 	var boardholder;
-	$(document).ready(function() {
+    Numbas.util.document_ready(function() {
 		boardholder = document.createElement('div');
 		boardholder.id = 'jsxgraphholder';
 		boardholder.setAttribute('class','invisible');
@@ -110,8 +110,8 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         var promise = new Promise(function(resolve,reject) {
             var attached_interval = setInterval(function() {
                 var p = div;
-                while(p && p!=document.body) {
-                    p = p.parentElement;
+                while(p && !(p.nodeType == p.DOCUMENT_NODE || p.nodeType == p.DOCUMENT_FRAGMENT_NODE)) {
+                    p = p.parentNode;
                 }
                 if(p) {
                     clearInterval(attached_interval);
