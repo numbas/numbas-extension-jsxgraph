@@ -4,15 +4,15 @@
 */
 
 Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
-	var jme = Numbas.jme;	
-	var util = Numbas.util;
-	var math = Numbas.math;
+    var jme = Numbas.jme;
+    var util = Numbas.util;
+    var math = Numbas.math;
 
     var jme = Numbas.jme;
     var sig = jme.signature;
 
-	var types = jme.types;
-	var funcObj = jme.funcObj;
+    var types = jme.types;
+    var funcObj = jme.funcObj;
     var TString = types.TString;
     var TFunc = types.TFunc;
     var TVector = types.TVector;
@@ -46,40 +46,40 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         ['size','getSize',TNum]
     ];
 
-	var boards = 0;
-	var boardholder;
+    var boards = 0;
+    var boardholder;
     Numbas.util.document_ready(function() {
-		boardholder = document.createElement('div');
-		boardholder.id = 'jsxgraphholder';
-		boardholder.setAttribute('class','invisible');
+        boardholder = document.createElement('div');
+        boardholder.id = 'jsxgraphholder';
+        boardholder.setAttribute('class','invisible');
         boardholder.setAttribute('style','height:0; overflow-y: hidden;');
-		document.body.appendChild(boardholder);
-	});
+        document.body.appendChild(boardholder);
+    });
 
     jsxgraph.default_options = {
         boundingBox:[-5,5,5,-5],
-        showCopyright:false, 
-        showNavigation:false, 
+        showCopyright:false,
+        showNavigation:false,
         axis:true
     };
 
-	jsxgraph.makeBoard = function(width,height,options) {
-		width = width || '600px';
-		height = height || '600px';
-		options = Numbas.util.extend_object(
+    jsxgraph.makeBoard = function(width,height,options) {
+        width = width || '600px';
+        height = height || '600px';
+        options = Numbas.util.extend_object(
             {},
             jsxgraph.default_options,
             options
         );
 
-		var div = document.createElement('div');
-		div.style.margin='0 auto';
-		div.id = 'jsxgraph'+(boards++);
-		div.style.width = width;
-		div.style.height = height;
+        var div = document.createElement('div');
+        div.style.margin='0 auto';
+        div.id = 'jsxgraph'+(boards++);
+        div.style.width = width;
+        div.style.height = height;
         div.classList.add('jsxgraph-board');
-		boardholder.appendChild(div);
-		div.board = JXG.JSXGraph.initBoard(div,options);
+        boardholder.appendChild(div);
+        div.board = JXG.JSXGraph.initBoard(div,options);
 
         var attached_interval = setInterval(function() {
             if(div.parentElement!=boardholder) {
@@ -88,23 +88,23 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
         },10);
 
-		return div;
-	}
+        return div;
+    }
 
-	jsxgraph.makeBoardPromise = function(width,height,options) {
-		width = width || '600px';
-		height = height || '600px';
-		options = Numbas.util.extend_object(
+    jsxgraph.makeBoardPromise = function(width,height,options) {
+        width = width || '600px';
+        height = height || '600px';
+        options = Numbas.util.extend_object(
             {},
             jsxgraph.default_options,
             options
         );
 
-		var div = document.createElement('div');
-		div.style.margin='0 auto';
-		div.id = 'jsxgraph'+(boards++);
-		div.style.width = width;
-		div.style.height = height;
+        var div = document.createElement('div');
+        div.style.margin='0 auto';
+        div.id = 'jsxgraph'+(boards++);
+        div.style.width = width;
+        div.style.height = height;
         div.classList.add('jsxgraph-board');
 
         var promise = new Promise(function(resolve,reject) {
@@ -122,8 +122,8 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             },10);
         });
 
-		return {element: div, promise: promise};
-	}
+        return {element: div, promise: promise};
+    }
 
     var not_initialised_error = false;
 
@@ -201,7 +201,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
 
         lockBoard: function() {
             var board = this.getBoard();
-            
+
             board.attr.drag.enabled = false;
         },
 
@@ -349,7 +349,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 var has_interacted = false;
                 this.board.on('up', () => { has_interacted = true; });
                 this.board.on('keymove', () => { has_interacted = true; });
-                this.board.on('update', () => { 
+                this.board.on('update', () => {
                     if(has_interacted) {
                         if(p.display && p.display.html && p.display.html.contains(this.element)) {
                             p.setDirty(true);
@@ -419,8 +419,8 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                     var events = od[3].type=='nothing' ? {} : jme.unwrapValue(od[3]);
                     Object.keys(events).forEach(function(ename) {
                         var code = events[ename];
-                        obj.on(ename,function() { 
-                            board.jc.parse(code); 
+                        obj.on(ename,function() {
+                            board.jc.parse(code);
                         });
                     });
                 });
@@ -571,7 +571,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         sig.label('events',sig.optional(sig.type('dict')))
     );
 
-    var sig_jme_objects = 
+    var sig_jme_objects =
         sig.label('objects',sig.or(
             sig.dict(sig_jsxgraph_object),
             sig.listof(sig_jsxgraph_object)
@@ -605,7 +605,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             if(argdict.boundingBox) {
                 options.boundingBox = jme.unwrapValue(argdict.boundingBox);
             }
-            
+
             var jb = new TJSXGraphBoard(width,height,options,scope.question);
             jb.add_jme_objects(argdict.objects,scope);
 
@@ -792,8 +792,8 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             tboard.boardPromise.then(function(board) {
                 var object = args[0].get();
                 var name = Numbas.util.capitalise(args[1].value);
-                var jargs = args.slice(2).map(function(a) { 
-                    var v = jme.unwrapValue(a); 
+                var jargs = args.slice(2).map(function(a) {
+                    var v = jme.unwrapValue(a);
                     if(v.toNumber) {
                         v = v.toNumber();
                     }
