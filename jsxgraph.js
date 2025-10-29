@@ -591,6 +591,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         sig.optional(sig.label('options',sig.type('dict')))
     );
     jsxgraph.scope.addFunction(new funcObj('jsxgraph',[sig_jsxgraph],TJSXGraphBoard,null,{
+        random: false,
         evaluate: function(args,scope) {
             var m = sig_jsxgraph(args.filter(function(t){ return t.type!='nothing' }));
             var argdict = {};
@@ -626,6 +627,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         sig.optional(sig.label('options',sig.type('dict')))
     );
     jsxgraph.scope.addFunction(new funcObj('jessiecode',[sig_jessiecode],TJSXGraphBoard,null, {
+        random: false,
         evaluate: function(args,scope) {
             var m = sig_jessiecode(args.filter(function(t){ return t.type!='nothing' }));
             var argdict = {};
@@ -649,6 +651,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('resume_jsxgraph_board',[TDict],TJSXGraphBoard,null, {
+        random: false,
         evaluate: function(args,scope) {
             var argdict = jme.unwrapValue(args[0]);
             var width = argdict.width;
@@ -668,6 +671,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('resume_jsxgraph_board_init',[TNum, TNum, TDict, TList], TJSXGraphBoard, null, {
+        random: false,
         evaluate: function(args,scope) {
             var width = jme.unwrapValue(args[0]);
             var height = jme.unwrapValue(args[1]);
@@ -682,6 +686,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('listval',[TJSXGraphBoard,TString], TJSXGraphObject, null, {
+        random: false,
         evaluate: function(args,scope) {
             return new TJSXGraphObject(args[0],args[1].value);
         }
@@ -693,6 +698,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         var outtype = def[2];
         var sig = def[3] || [];
         jsxgraph.scope.addFunction(new funcObj('jxg_'+jme_name, [TJSXGraphObject].concat(sig), outtype, null, {
+            random: false,
             evaluate: function(args,scope) {
                 var object = args[0].get();
                 var args = args.slice(1).map(function(arg) { return jme.unwrapValue(arg); });
@@ -703,6 +709,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     });
 
     jsxgraph.scope.addFunction(new funcObj('jxg_position',[TJSXGraphObject], TVector, null, {
+        random: false,
         evaluate: function(args,scope) {
             var object = args[0].get();
             var x = object.X();
@@ -712,6 +719,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_position_at',[TJSXGraphObject, TNum], TVector, null, {
+        random: false,
         evaluate: function(args,scope) {
             var object = args[0].get();
             var t = args[1].value;
@@ -728,18 +736,21 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }
 
     jsxgraph.scope.addFunction(new funcObj('jxg_has_point',[TJSXGraphObject, TVector], TBool, null, {
+        random: false,
         evaluate: function(args,scope) {
             return has_point(args[0], args[1].value[0], args[1].value[1]);
         }
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_has_point',[TJSXGraphObject, TNum, TNum], TBool, null, {
+        random: false,
         evaluate: function(args,scope) {
             return has_point(args[0], args[1].value, args[2].value);
         }
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_distance',[TJSXGraphObject, TJSXGraphObject], TNum, null, {
+        random: false,
         evaluate: function(args,scope) {
             var a = args[0].get();
             var b = args[1].get();
@@ -758,6 +769,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }
 
     jsxgraph.scope.addFunction(new funcObj('jxg_set_position',[TJSXGraphObject, TVector], TJSXGraphAction, null, {
+        random: false,
         evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function(board) {
@@ -772,6 +784,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_show',[TJSXGraphObject, TBool], TJSXGraphAction, null, {
+        random: false,
         evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function() {
@@ -787,6 +800,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_set',[TJSXGraphObject, TString, sig.multiple(sig.anything())], TJSXGraphAction, null, {
+        random: false,
         evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function(board) {
@@ -806,6 +820,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_set_attribute',[TJSXGraphObject, TDict], TJSXGraphAction, null, {
+        random: false,
         evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function() {
@@ -817,6 +832,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_set_term',[TJSXGraphObject, TExpression], TJSXGraphAction, null, {
+        random: false,
         evaluate: make_action(function(args,scope) {
             var tboard = args[0].board;
             tboard.boardPromise.then(function(board) {
@@ -835,6 +851,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_add_objects',[TJSXGraphBoard, sig_jme_objects], TJSXGraphBoard, null, {
+        random: false,
         evaluate: function(args,scope) {
             args[0].add_jme_objects(args[1],scope);
             return args[0];
@@ -842,6 +859,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
     }));
 
     jsxgraph.scope.addFunction(new funcObj('jxg_run_jessiecode',[TJSXGraphBoard, TString], TJSXGraphBoard, null, {
+        random: false,
         evaluate: function(args,scope) {
             var code = args[1].value;
             args[0].run_jessiecode(code);
