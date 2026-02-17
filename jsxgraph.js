@@ -398,6 +398,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                         }
                         var options = od[2];
                         options.value.name = new TString(name);
+                        options.value.id = new TString(name);
                         nobjects.push(od);
                     });
                     objects = nobjects;
