@@ -125,6 +125,57 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         return {element: div, promise: promise};
     }
 
+    /* Get the interactive state of a board, for saving in the question suspend data's `interactive_state` object.
+     *
+     * @param {JXG.Board} board
+     * @returns {Object}
+     */
+    jsxgraph.board_state = function(board) {
+        return Object.fromEntries(board.objectsList.map(obj => {
+            if(obj.parents.length > 0 && !['glider','slider'].includes(obj.elType)) {
+                return;
+            }
+            const properties = ['X','Y','Value'].map(key => {
+                try {
+                    const value = (typeof obj[key]=='function') ? obj[key]() : obj[key];
+                    if(value === undefined) {
+                        return;
+                    }
+                    return [key,value];
+                } catch {
+                }
+            }).filter(x => x!== undefined);
+            return [obj.id, Object.fromEntries(properties)];
+        }).filter(x => x !== undefined));
+    };
+
+    /** Restore a board to a previously saved state.
+     *
+     * @param {JXG.Board} board
+     * @param {Object} state
+     */
+    jsxgraph.restore_state = function(board, state) {
+        Object.entries(state).forEach(([id,props]) => {
+            const obj = board.objects[id];
+            if(!obj) {
+                throw(new Error(`The object ${id} doesn't exist in this board.`));
+            }
+            if(props.X !== undefined) {
+                obj.setPosition(JXG.COORDS_BY_USER,[props.X,props.Y]);
+            }
+            if(props.Value !== undefined) {
+                if(obj.rendNodeCheckbox) {
+                    obj.setAttribute({checked: props.Value});
+                } else if(obj.rendNodeInput) {
+                    obj.set(props.Value);
+                } else {
+                    obj.setValue(props.Value);
+                }
+            }
+        });
+        board.update()
+    };
+
     var not_initialised_error = false;
 
     var TJSXGraphBoard = jsxgraph.TJSXGraphBoard = function(width,height,options,question,immediate) {
@@ -203,6 +254,21 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             var board = this.getBoard();
 
             board.attr.drag.enabled = false;
+        },
+
+        get_interactive_state: function() {
+            if(!this.board) {
+                return;
+            }
+            console.log('saving state');
+            return jsxgraph.board_state(this.board);
+        },
+
+        resume_interactive_state: function(state) {
+            this.boardPromise.then(function(board) {
+                console.log('restoring state');
+                jsxgraph.restore_state(board, state);
+            });
         },
 
         linkToPart: function(p) {
@@ -645,6 +711,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
 
             var jb = new TJSXGraphBoard(width,height,options,scope.question);
+            console.log('run jessiecode');
             jb.run_jessiecode(argdict.script.value);
 
             return jb;
