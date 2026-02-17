@@ -79,6 +79,9 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         div.style.height = height;
         div.classList.add('jsxgraph-board');
         boardholder.appendChild(div);
+        if(options.id === undefined) {
+            options.id = 'numbasjsxgraph'+boards;
+        }
         div.board = JXG.JSXGraph.initBoard(div,options);
 
         var attached_interval = setInterval(function() {
@@ -103,6 +106,9 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         var div = document.createElement('div');
         div.style.margin='0 auto';
         div.id = 'jsxgraph'+(boards++);
+        if(options.id === undefined) {
+            options.id = 'numbasjsxgraph'+boards;
+        }
         div.style.width = width;
         div.style.height = height;
         div.classList.add('jsxgraph-board');
@@ -158,7 +164,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
         Object.entries(state).forEach(([id,props]) => {
             const obj = board.objects[id];
             if(!obj) {
-                throw(new Error(`The object ${id} doesn't exist in this board.`));
+                return;
             }
             if(props.X !== undefined) {
                 obj.setPosition(JXG.COORDS_BY_USER,[props.X,props.Y]);
@@ -260,13 +266,11 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             if(!this.board) {
                 return;
             }
-            console.log('saving state');
             return jsxgraph.board_state(this.board);
         },
 
         resume_interactive_state: function(state) {
             this.boardPromise.then(function(board) {
-                console.log('restoring state');
                 jsxgraph.restore_state(board, state);
             });
         },
@@ -711,7 +715,6 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             }
 
             var jb = new TJSXGraphBoard(width,height,options,scope.question);
-            console.log('run jessiecode');
             jb.run_jessiecode(argdict.script.value);
 
             return jb;
