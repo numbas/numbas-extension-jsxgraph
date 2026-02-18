@@ -137,22 +137,25 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
      * @returns {Object}
      */
     jsxgraph.board_state = function(board) {
-        return Object.fromEntries(board.objectsList.map(obj => {
-            if(obj.parents.length > 0 && !['glider','slider'].includes(obj.elType)) {
-                return;
-            }
-            const properties = ['X','Y','Value'].map(key => {
-                try {
-                    const value = (typeof obj[key]=='function') ? obj[key]() : obj[key];
-                    if(value === undefined || (typeof value == 'number' && isNaN(value))) {
-                        return;
-                    }
-                    return [key,value];
-                } catch {
+        return {
+            has_interacted: board.has_interacted,
+            objects: Object.fromEntries(board.board.objectsList.map(obj => {
+                if(obj.parents.length > 0 && !['glider','slider'].includes(obj.elType)) {
+                    return;
                 }
-            }).filter(x => x !== undefined);
-            return [obj.id, Object.fromEntries(properties)];
-        }).filter(x => x !== undefined));
+                const properties = ['X','Y','Value'].map(key => {
+                    try {
+                        const value = (typeof obj[key]=='function') ? obj[key]() : obj[key];
+                        if(value === undefined || (typeof value == 'number' && isNaN(value))) {
+                            return;
+                        }
+                        return [key,value];
+                    } catch {
+                    }
+                }).filter(x => x !== undefined);
+                return [obj.id, Object.fromEntries(properties)];
+            }).filter(x => x !== undefined))
+        }
     };
 
     /** Restore a board to a previously saved state.
@@ -179,7 +182,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 }
             }
         });
-        board.update()
+        board.update();
     };
 
     var not_initialised_error = false;
@@ -217,7 +220,7 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 question.signals.on('revealed',function() {
                     jb.lockBoard();
                 });
-                question.signals.on('ready', function() {
+                question.signals.on('partsGenerated', function() {
                     question.allParts().map(function(p) {
                         jb.linkToPart(p);
                     });
@@ -266,12 +269,13 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             if(!this.board) {
                 return;
             }
-            return jsxgraph.board_state(this.board);
+            return jsxgraph.board_state(this);
         },
 
         resume_interactive_state: function(state) {
-            this.boardPromise.then(function(board) {
-                jsxgraph.restore_state(board, state);
+            this.boardPromise.then((board) => {
+                jsxgraph.restore_state(board, state.objects);
+                this.has_interacted = this.has_interacted || state.has_interacted;
             });
         },
 
@@ -416,11 +420,10 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
                 });
                 bind_outputs();
             } else if(p.type=='extension') {
-                var has_interacted = false;
-                this.board.on('up', () => { has_interacted = true; });
-                this.board.on('keymove', () => { has_interacted = true; });
+                this.board.on('up', () => { jb.has_interacted = true; });
+                this.board.on('keymove', () => { jb.has_interacted = true; });
                 this.board.on('update', () => {
-                    if(has_interacted) {
+                    if(jb.has_interacted) {
                         if(p.display && p.display.html && p.display.html.contains(this.element)) {
                             p.setDirty(true);
                             debounce_auto_submit();
