@@ -144,13 +144,13 @@ Numbas.addExtension('jsxgraph',['display','util','jme'],function(jsxgraph) {
             const properties = ['X','Y','Value'].map(key => {
                 try {
                     const value = (typeof obj[key]=='function') ? obj[key]() : obj[key];
-                    if(value === undefined) {
+                    if(value === undefined || (typeof value == 'number' && isNaN(value))) {
                         return;
                     }
                     return [key,value];
                 } catch {
                 }
-            }).filter(x => x!== undefined);
+            }).filter(x => x !== undefined);
             return [obj.id, Object.fromEntries(properties)];
         }).filter(x => x !== undefined));
     };
